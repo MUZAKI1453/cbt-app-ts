@@ -1,0 +1,103 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  ESSAY
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  examsCreated Exam[]          @relation("TeacherExams")
+  studentExams StudentExam[]
+  answers      StudentAnswer[]
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  exams     Exam[]
+  createdAt DateTime @default(now())
+}
+
+model Exam {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  duration    Int // Durasi dalam satuan menit
+  startTime   DateTime
+  endTime     DateTime
+  isPublished Boolean  @default(false)
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  teacherId String
+  teacher   User   @relation("TeacherExams", fields: [teacherId], references: [id])
+
+  questions    Question[]
+  studentExams StudentExam[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Question {
+  id     String @id @default(uuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  questionText  String
+  type          QuestionType @default(MULTIPLE_CHOICE)
+  options       Json?
+  correctAnswer String
+  score         Int          @default(1)
+
+  answers StudentAnswer[]
+}
+
+model StudentExam {
+  id        String @id @default(uuid())
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  startTime  DateTime  @default(now())
+  submitTime DateTime?
+  score      Float?    @default(0)
+  isFinished Boolean   @default(false)
+
+  @@unique([studentId, examId])
+}
+
+model StudentAnswer {
+  id        String @id @default(uuid())
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  selectedAnswer String?
+  isCorrect      Boolean? @default(false)
+}
